@@ -91,3 +91,124 @@ And since these have been provided ahead of time, you only need to yield all the
 
 Now, you can Unit Test this by providing your own `DbConnection` and `DbTransaction` 
 without having to worry about transactions updating the real database!
+
+## Inheriting from `Access`
+To handle an entity from your database, you can inherit from the abstract class `Access`:
+```cs
+public sealed class PersonAccess(IAccessor accessor) : Access(accessor, SQL, ref _isCreated)
+{
+    private const string SQL = """
+    CREATE TABLE IF NOT EXISTS Person (
+        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        birthDate DATE NOT NULL
+    )
+    """;
+    private static bool _isCreated;
+}
+```
+In this `PersonAccess` class, I used a primary constructor to inject an `IAccessor` object to propagate to the `Access` abstract class.
+The second parameter provided is the Table creation SQL, which will be executed from within the `Access` class' constructor.
+
+The third parameter is a reference to a static boolean. 
+This boolean indicates whether this specific table has already been created during the run of the program.
+Keep in mind, however, that you still need to add a check for if the table exists, since the database lives past the runtime of the program.
+
+Now, let's add an `Insert` method to our `PersonAccess` class:
+```cs
+internal async Task<int> Insert(Person p) => new QueryBuilder<int>(Accessor)
+.NonQueryCommand("INSERT INTO Person VALUES (@ID, @Name, @BirthDate)", p)
+.Execute();
+```
+This method takes in a `Person` DTO record and creates a new instance of the `QueryBuilder<int>` class, 
+with a non-query command to insert this object into the database. For more on how these queries work, see the next section.
+
+## Using the `QueryBuilder<T>` Class
+### Creation
+Now that you know how to create your own `Access` methods, it's time to actually make use of the `QueryBuilder<T>` class.
+As shown in the previous section, you can create a `QueryBuilder<T>` object by injecting an `IAccessor` object into it:
+```cs
+Accessor accessor = new Accesor();
+QueryBuilder<int> builder = new QueryBuilder<int>(accessor);
+```
+### Commands
+Now that you've created an instance of this `QueryBuilder<T>` class, you can start adding commands to your query.
+
+#### `AddCommand` Method
+Starting off with the most generic method, you can use the `AddCommand` method to add a new command to your query:
+```cs
+new QueryBuilder<int>(accessor)
+.AddCommand(c => c.ExecuteAsync, PersonSQL.Insert, new Person(1, "Name", DateTime.Today));
+```
+In this example, I first specified a `DapperQuery` delegate, which takes in any `DbConnection`, returning a delegate that takes in a `CommandDefinition` object.
+The second parameter is this SQL you want to execute. 
+By normal convention, I would recommend putting this in its own dedicated file to satisfy the Single Responsibility Principle (SRP).
+The third parameter is the parameter you want to provide as a placeholder for the query, similar to how that works with Dapper's object parameters.
+
+Another way to provide the parameter argument to this method is by specifying a function that takes in the previously executed command:
+```cs
+new QueryBuilder<int>(accessor)
+.AddCommand(c => c.ExecuteAsync, PersonSQL.Insert, new Person(1, "Name", DateTime.Today))
+.AddCommand(c => c.ExecuteAsync, PersonSQL.Delete, id => new { ID = id });
+```
+
+#### `NonQueryCommand` Extension Method
+This extension method will apply the `ExecuteAsync` method automatically:
+```cs
+new QueryBuilder<int>(accessor)
+.NonQueryCommand(PersonSQL.Insert, new Person(1, "Name", DateTime.Today));
+```
+
+#### `ScalarCommand` Extension Method
+This extension method will apply the `ExecuteScalarAsync<T>` method automatically:
+```cs
+new QueryBuilder<int>(accessor)
+.ScalarCommand(PersonSQL.Count);
+```
+
+#### `SingleCommand` Extension Method
+This extension method will apply the `SingleOrDefaultAsync<T>` method automatically:
+```cs
+new QueryBuilder<Person?>(accessor)
+.SingleCommand(PersonSQL.ByName, new { Name = "Name" });
+```
+
+#### `FirstCommand` Extension Method
+This extension method will apply the `FirstOrDefaultAsync<T>` method automatically:
+```cs
+new QueryBuilder<Person?>(accessor)
+.FirstCommand(PersonSQL.ByName, new { Name = "Name" });
+```
+
+#### `QueryCommand` Extension Method
+This extension method will apply the `QueryAsync<T>` method automatically:
+```cs
+new QueryBuilder<IEnumerable<Person>>(accessor)
+.QueryCommand(PersonSQL.GetTeenagers);
+```
+
+#### `QueryCommand<U, ...>` Extension Methods
+These extension method overloads will apply each individual `QueryAsync<T, ...>` method automatically, applied with some mapper function:
+```cs
+new QueryBuilder<IEnumerable<Person>>(accessor)
+.QueryCommand<Pet>((person, pet) => { person.Pet = pet; return person; }, PersonSQL.GetAustralians);
+```
+
+### `Execute` Methods
+Lastly, you can execute these commands using the `Execute` method:
+```cs
+Person? p = new QueryBuilder<Person?>(accessor)
+.SingleCommand(PersonSQL.ByName, new { Name = "Name" })
+.Execute(e => e.SingleAsync);
+```
+This example executes the given `SingleCommand` and yields its value, which is then queried by the provided `SingleAsync` method.
+Any delegate matching a function that takes in an `IAsyncEnumerable<T>` and 
+returns a function that takes in a `CancellationToken`
+is allowed to be used in this method.
+
+If you don't want to have to specify the `SingleAsync` method every time (since most queries only have one command), you can use the empty overload:
+```cs
+Person? p = new QueryBuilder<Person?>(accessor)
+.SingleCommand(PersonSQL.ByName, new { Name = "Name" })
+.Execute();
+```
