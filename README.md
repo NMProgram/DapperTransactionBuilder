@@ -131,7 +131,7 @@ with a non-query command to insert this object into the database. For more on ho
 Now that you know how to create your own `Access` classes, it's time to actually make use of the `QueryBuilder<T>` class.
 As shown in the previous section, you can create a `QueryBuilder<T>` object by injecting an `IAccessor` object into it:
 ```cs
-Accessor accessor = new Accesor();
+Accessor accessor = new Accessor();
 QueryBuilder<int> builder = new QueryBuilder<int>(accessor);
 ```
 ### Commands
