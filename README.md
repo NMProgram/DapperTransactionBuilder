@@ -8,7 +8,7 @@ This interface requires implementing a `CancellationToken` property and a `RunQu
 By abstracting this to an interface, you can easily unit/integration test any query operation by simply creating a mock of your base implementation.
 
 # Examples
-In this paragraph, I'll show some base implementations of the `IAccessor` interface, 
+In this section, I'll show some base implementations of the `IAccessor` interface, 
 the usage of the abstract class `Access` and 
 how you can create a query using the `QueryBuilder<T>` class.
 
