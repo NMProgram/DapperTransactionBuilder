@@ -1,5 +1,5 @@
 # Introduction
-This NuGet Package, **DapperBuilder**, is a light-weight tool that allows you to create CRUD queries or Select queries using the `Dapper` NuGet Package's extension methods. 
+This Project, **DapperBuilder**, is a light-weight tool that allows you to create CRUD queries or Select queries using the `Dapper` NuGet Package's extension methods. 
 Through the `QueryBuilder<T>` class, a query can be built that acts as a single transaction to perform several SQL queries, 
 before either being discarded or committed to the actual database. 
 
