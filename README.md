@@ -108,11 +108,14 @@ public sealed class PersonAccess(IAccessor accessor) : Access(accessor, SQL, ref
 }
 ```
 In this `PersonAccess` class, I used a primary constructor to inject an `IAccessor` object to propagate to the `Access` abstract class.
+
 The second parameter provided is the Table creation SQL, which will be executed from within the `Access` class' constructor.
 
 The third parameter is a reference to a static boolean. 
+
 This boolean indicates whether this specific table has already been created during the run of the program.
-Keep in mind, however, that you still need to add a check for if the table exists, since the database lives past the runtime of the program.
+> [!WARNING]
+> You still need to add a check for if the table exists, since the database lives past the runtime of the program.
 
 Now, let's add an `Insert` method to our `PersonAccess` class:
 ```cs
@@ -125,7 +128,7 @@ with a non-query command to insert this object into the database. For more on ho
 
 ## Using the `QueryBuilder<T>` Class
 ### Creation
-Now that you know how to create your own `Access` methods, it's time to actually make use of the `QueryBuilder<T>` class.
+Now that you know how to create your own `Access` classes, it's time to actually make use of the `QueryBuilder<T>` class.
 As shown in the previous section, you can create a `QueryBuilder<T>` object by injecting an `IAccessor` object into it:
 ```cs
 Accessor accessor = new Accesor();
@@ -141,8 +144,14 @@ new QueryBuilder<int>(accessor)
 .AddCommand(c => c.ExecuteAsync, PersonSQL.Insert, new Person(1, "Name", DateTime.Today));
 ```
 In this example, I first specified a `DapperQuery` delegate, which takes in any `DbConnection`, returning a delegate that takes in a `CommandDefinition` object.
-The second parameter is this SQL you want to execute. 
-By normal convention, I would recommend putting this in its own dedicated file to satisfy the Single Responsibility Principle (SRP).
+
+This means any delegate matching the style `connection => commandDefinition => connection.Method(commandDefinition)` can be used here.
+
+The second parameter is the SQL you want to execute. 
+
+> [!NOTE]
+> By normal convention, I would recommend putting this in its own dedicated file to satisfy the Single Responsibility Principle (SRP).
+
 The third parameter is the parameter you want to provide as a placeholder for the query, similar to how that works with Dapper's object parameters.
 
 Another way to provide the parameter argument to this method is by specifying a function that takes in the previously executed command:
@@ -202,9 +211,12 @@ Person? p = new QueryBuilder<Person?>(accessor)
 .Execute(e => e.SingleAsync);
 ```
 This example executes the given `SingleCommand` and yields its value, which is then queried by the provided `SingleAsync` method.
-Any delegate matching a function that takes in an `IAsyncEnumerable<T>` and 
-returns a function that takes in a `CancellationToken`
-is allowed to be used in this method.
+> [!NOTE]
+> Any delegate matching a function that takes in an `IAsyncEnumerable<T>` and 
+> returns a function that takes in a `CancellationToken`
+> is allowed to be used in this method.
+> 
+> Example: `enumerable => token => enumerable.SingleAsync(token);`
 
 If you don't want to have to specify the `SingleAsync` method every time (since most queries only have one command), you can use the empty overload:
 ```cs
