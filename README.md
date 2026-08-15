@@ -4,7 +4,9 @@ Through the `QueryBuilder<T>` class, a query can be built that acts as a single 
 before either being discarded or committed to the actual database. 
 
 For customization purposes, the actual implementation of the execution of these queries is abstracted to the `IAccessor` interface.
+
 This interface requires implementing a `CancellationToken` property and a `RunQuery<T>(QueryBuilder<T> builder)` method.
+
 By abstracting this to an interface, you can easily unit/integration test any query operation by simply creating a mock of your base implementation.
 
 # Examples
