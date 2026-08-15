@@ -13,6 +13,7 @@ the usage of the abstract class `Access` and
 how you can create a query using the `QueryBuilder<T>` class.
 
 ## IAccessor Implementation
+### Base Implementation
 When creating a class that implements `IAccessor`, this will be the template that you'll have to work with:
 ```cs
 public sealed class Accessor : IAccessor
@@ -63,3 +64,30 @@ ensuring that no unmanaged resources stay up after the method is done executing.
 
 The `await trans.CommitAsync()` ensures that any changes to the database are committed, 
 since any logic class' methods will most likely want the changes to be saved.
+
+### Mock Implementation
+To create a mock of this `Accessor` object, 
+all we need to do is provide the `DbConnection` and `DbTransaction` explicitly through the constructor using Dependency Injection:
+```cs
+public sealed class AccessorMock(DbConnection con, DbTransaction trans) : IAccessor
+{
+    private readonly DbConnection _con = con;
+    private readonly DbTransaction _trans = trans;
+
+    public CancellationToken Token { get; init; }
+
+    public async IAsyncEnumerable<T> RunQuery<T>(QueryBuilder<T> queryBuilder)
+    {
+        await foreach (var value in AccessUtils.RunQueries(queryBuilder, _con, _trans, Token))
+        {
+            yield return value;
+        }
+    }
+}
+```
+In this example, I provided any `DbConnection` and `DbTransaction` through the primary constructor, 
+allowing these to be saved within the object as the fields `_con` and `_trans`.
+And since these have been provided ahead of time, you only need to yield all the query results using the helper method `RunQueries`.
+
+Now, you can Unit Test this by providing your own `DbConnection` and `DbTransaction` 
+without having to worry about transactions updating the real database!
